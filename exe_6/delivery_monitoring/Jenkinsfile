@@ -1,0 +1,50 @@
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Check Project Files') {
+            steps {
+                sh '''
+                    test -f delivery_metrics.py
+                    test -f requirements.txt
+                    test -f prometheus.yml
+                    test -f alert_rules.yml
+                    test -f Dockerfile
+                    echo "All project files are present."
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t delivery-metrics .
+                '''
+            }
+        }
+
+        stage('Test Metrics Application') {
+            steps {
+                sh '''
+                    docker run -d --rm \
+                      --name delivery-metrics-test \
+                      delivery-metrics
+
+                    sleep 3
+
+                    docker stop delivery-metrics-test
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Delivery monitoring pipeline completed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Check the stage logs.'
+        }
+    }
+}
